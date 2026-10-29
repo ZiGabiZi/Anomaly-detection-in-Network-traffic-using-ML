@@ -39,3 +39,10 @@ Without an NVIDIA GPU, the CPU-only PyTorch build is much smaller: `pip install 
 
 ## Data
 The dataset files are not stored in this repository. Download `UNSW_NB15_training-set.csv` and `UNSW_NB15_testing-set.csv` from the [UNSW-NB15 page](https://research.unsw.edu.au/projects/unsw-nb15-dataset) and place them in `data/raw/`.
+
+### Data handling
+- The official train/test split is kept (175,341 / 82,332 flows).
+- Train: feature vectors with more than one label keep the majority label (ties are dropped), then exact duplicates are removed (`resolve_conflicts` + `deduplicate` in `src/netad/data.py`).
+- Test is not modified. Results are reported on the full test set and on the test rows whose features do not appear in train (10.4% of test rows do).
+
+Details in `notebooks/01_eda.ipynb`.
