@@ -2,27 +2,23 @@
 
 > ⚠️ **Work in progress** – the project is being refactored. The results of the old version (`notebooks/00_original_reference.ipynb`) are not methodologically valid and should not be used.
 
-This project explores anomaly detection in network traffic using machine learning techniques. The goal is to develop a system capable of identifying unusual or potentially malicious activities in network traffic, leveraging the UNSW-NB15 dataset and machine learning models like Autoencoders, Random Forest, Decision Trees, and Extra Trees Classifiers.
+Detecting malicious network flows on the UNSW-NB15 dataset, with supervised classifiers (attack vs normal, and attack category) and anomaly detection models trained on normal traffic only.
 
 ---
 
-## Features
-- Implements anomaly detection using an Autoencoder in PyTorch.
-- Uses ensemble methods (`RandomForestClassifier`, `DecisionTreeClassifier`, `ExtraTreesClassifier`) with a voting classifier for evaluation.
-- Includes feature selection with Recursive Feature Elimination (RFE).
-- Dataset preprocessing with PCA for dimensionality reduction.
-- Visualization of reconstruction loss distributions using `seaborn`.
-- Brute-force optimization for threshold selection to maximize detection accuracy.
-- Pre-trained model support with `.pth` files for inference and further training.
+## Status
+- ✅ Data loading and EDA
+- ⏳ Preprocessing
+- ⏳ Evaluation framework
+- ⏳ Supervised models (Random Forest, gradient boosting)
+- ⏳ Anomaly detection (Isolation Forest, autoencoder)
+- ⏳ Inference script
 
 ---
 
 ## Dataset
-The project utilizes the [UNSW-NB15 dataset](https://research.unsw.edu.au/projects/unsw-nb15-dataset), a publicly available collection of network traffic records, which includes normal and attack data. Features from the dataset are used to train and evaluate the models.
-
-- **Dataset Features:**
-  - Contains 49 attributes, including flow features, basic features, and content-based features.
-  - Attack categories: `DoS`, `Fuzzers`, `Worms`, `Backdoors`, etc.
+The project uses the [UNSW-NB15 dataset](https://research.unsw.edu.au/projects/unsw-nb15-dataset) (UNSW Canberra): labelled network flows with normal traffic and 9 attack categories (`Fuzzers`, `Analysis`, `Backdoor`, `DoS`, `Exploits`, `Generic`, `Reconnaissance`, `Shellcode`, `Worms`).
+The official train/test files contain 42 features per flow, plus `label` (0 normal, 1 attack) and `attack_cat`.
 
 ---
 
@@ -45,4 +41,14 @@ The dataset files are not stored in this repository. Download `UNSW_NB15_trainin
 - Train: feature vectors with more than one label keep the majority label (ties are dropped), then exact duplicates are removed (`resolve_conflicts` + `deduplicate` in `src/netad/data.py`).
 - Test is not modified. Results are reported on the full test set and on the test rows whose features do not appear in train (10.4% of test rows do).
 
+### Known dataset issues
+- The train/test overlap is uneven across classes: 49% of DoS test rows also appear in train, against 4% of Normal. DoS scores on the full test set will be optimistic.
+- In test, 91% of Analysis and 90% of Backdoor rows share their feature vector with another class. Multi-class accuracy can't go above ~94%, and recall on these two classes can't go above ~10%. Binary detection is not affected.
+- The TTL columns (`sttl`, `dttl`, `ct_state_ttl`) alone give ~79% test accuracy. They most likely reflect the testbed topology rather than attack behaviour.
+
 Details in `notebooks/01_eda.ipynb`.
+
+## Notebooks
+- `00_original_reference.ipynb` – the old version, kept for reference only
+- `01_eda.ipynb` – dataset analysis
+- `checks.ipynb` – asserts on `src/netad/`, run it after every change there
