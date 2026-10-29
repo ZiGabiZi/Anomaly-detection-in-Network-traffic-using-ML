@@ -9,7 +9,7 @@ Detecting malicious network flows on the UNSW-NB15 dataset, with supervised clas
 ## Status
 - ✅ Data loading and EDA
 - ✅ Preprocessing
-- ⏳ Evaluation framework
+- ✅ Evaluation framework
 - ⏳ Supervised models (Random Forest, gradient boosting)
 - ⏳ Anomaly detection (Isolation Forest, autoencoder)
 - ⏳ Inference script
@@ -49,7 +49,14 @@ The dataset files are not stored in this repository. Download `UNSW_NB15_trainin
 
 Details in `notebooks/01_eda.ipynb`.
 
+## Evaluation
+- Binary: precision, recall, F1, FPR, ROC-AUC, PR-AUC and confusion matrix. The alert threshold is chosen on validation with an FPR budget (1% by default), not on test.
+- Multi-class: accuracy, macro and weighted F1, per-class precision/recall/F1 and confusion matrix.
+- Every model is reported on validation, on the full test set and on the unseen test rows.
+- Results are collected in `reports/results.json` (`src/netad/evaluation.py`).
+
 ## Notebooks
 - `00_original_reference.ipynb` – the old version, kept for reference only
 - `01_eda.ipynb` – dataset analysis
+- `02_supervised.ipynb` – supervised models (so far the Dummy baseline)
 - `checks.ipynb` – asserts on `src/netad/`, run it after every change there
