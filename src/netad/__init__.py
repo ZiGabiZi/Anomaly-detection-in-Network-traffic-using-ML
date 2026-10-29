@@ -1,1 +1,1 @@
-"""Network anomaly detection on UNSW-NB15."""
+"""Anomaly detection on UNSW-NB15."""

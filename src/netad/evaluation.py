@@ -1,1 +1,1 @@
-"""Shared evaluation: metrics, threshold selection, plots, results.json."""
+"""Evaluation metrics and plots."""
