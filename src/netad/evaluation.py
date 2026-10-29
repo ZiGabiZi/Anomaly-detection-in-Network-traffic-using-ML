@@ -15,8 +15,24 @@ RESULTS_PATH = REPORTS_DIR / "results.json"
 FIGURES_DIR = REPORTS_DIR / "figures"
 
 
-def evaluate_binary(y_true, scores, threshold: float) -> dict:
-    """Metrics for attack (1) vs normal (0); a flow is flagged when score >= threshold."""
+def detection_by_category(categories, y_pred) -> dict:
+    """Share of flows flagged as attack for each attack_cat (for Normal this is the FPR)."""
+    categories = np.asarray(categories)
+    y_pred = np.asarray(y_pred).astype(bool)
+    return {
+        str(cat): {
+            "n": int((categories == cat).sum()),
+            "flagged": float(y_pred[categories == cat].mean()),
+        }
+        for cat in np.unique(categories)
+    }
+
+
+def evaluate_binary(y_true, scores, threshold: float, categories=None) -> dict:
+    """Metrics for attack (1) vs normal (0); a flow is flagged when score >= threshold.
+
+    With `categories` (attack_cat of each row) also adds the detection rate per category.
+    """
     y_true = np.asarray(y_true)
     scores = np.asarray(scores, dtype=float)
     y_pred = (scores >= threshold).astype(int)
@@ -26,7 +42,7 @@ def evaluate_binary(y_true, scores, threshold: float) -> dict:
     recall = tp / (tp + fn) if tp + fn else 0.0
     both_classes = len(np.unique(y_true)) == 2
 
-    return {
+    metrics = {
         "n": len(y_true),
         "threshold": float(threshold),
         "precision": precision,
@@ -37,6 +53,9 @@ def evaluate_binary(y_true, scores, threshold: float) -> dict:
         "pr_auc": float(average_precision_score(y_true, scores)) if both_classes else None,
         "confusion_matrix": [[tn, fp], [fn, tp]],
     }
+    if categories is not None:
+        metrics["by_category"] = detection_by_category(categories, y_pred)
+    return metrics
 
 
 def choose_threshold(y_val, scores_val, mode: str = "fpr", max_fpr: float = 0.01) -> float:
@@ -73,6 +92,11 @@ def evaluate_multiclass(y_true, y_pred, labels: list[str] | None = None) -> dict
     y_pred = np.asarray(y_pred)
     names: list = labels if labels is not None else np.unique(np.concatenate([y_true, y_pred])).tolist()
 
+    # confusion_matrix silently drops rows with labels outside `names`
+    unknown = sorted((set(np.unique(y_true)) | set(np.unique(y_pred))) - set(names))
+    if unknown:
+        raise ValueError(f"labels not in {names}: {unknown}")
+
     cm = confusion_matrix(y_true, y_pred, labels=names)
     tp = np.diag(cm).astype(float)
     support = cm.sum(axis=1)
@@ -90,7 +114,7 @@ def evaluate_multiclass(y_true, y_pred, labels: list[str] | None = None) -> dict
     }
     return {
         "n": len(y_true),
-        "accuracy": float(tp.sum() / cm.sum()) if cm.sum() else 0.0,
+        "accuracy": float((y_true == y_pred).mean()) if len(y_true) else 0.0,
         "macro_f1": float(f1.mean()),
         "weighted_f1": float((f1 * support).sum() / support.sum()) if support.sum() else 0.0,
         "labels": names,
@@ -99,17 +123,25 @@ def evaluate_multiclass(y_true, y_pred, labels: list[str] | None = None) -> dict
     }
 
 
-def evaluate_test(evaluate, y_true, values, unseen, **kwargs) -> dict:
+def evaluate_test(evaluate, y_true, values, unseen, categories=None, **kwargs) -> dict:
     """Run `evaluate` on the whole test set and on the rows not seen in train.
 
     `values` are scores (binary) or predictions (multi-class), `unseen` is a boolean mask.
+    `categories` is only for evaluate_binary and gets the same mask.
     """
     y_true = np.asarray(y_true)
     values = np.asarray(values)
     unseen = np.asarray(unseen, dtype=bool)
+    if categories is None:
+        return {
+            "test": evaluate(y_true, values, **kwargs),
+            "test_unseen": evaluate(y_true[unseen], values[unseen], **kwargs),
+        }
+
+    categories = np.asarray(categories)
     return {
-        "test": evaluate(y_true, values, **kwargs),
-        "test_unseen": evaluate(y_true[unseen], values[unseen], **kwargs),
+        "test": evaluate(y_true, values, categories=categories, **kwargs),
+        "test_unseen": evaluate(y_true[unseen], values[unseen], categories=categories[unseen], **kwargs),
     }
 
 

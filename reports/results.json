@@ -24,7 +24,49 @@
           9847,
           0
         ]
-      ]
+      ],
+      "by_category": {
+        "Analysis": {
+          "n": 108,
+          "flagged": 0.0
+        },
+        "Backdoor": {
+          "n": 103,
+          "flagged": 0.0
+        },
+        "DoS": {
+          "n": 601,
+          "flagged": 0.0
+        },
+        "Exploits": {
+          "n": 3744,
+          "flagged": 0.0
+        },
+        "Fuzzers": {
+          "n": 2980,
+          "flagged": 0.0
+        },
+        "Generic": {
+          "n": 785,
+          "flagged": 0.0
+        },
+        "Normal": {
+          "n": 10342,
+          "flagged": 0.0
+        },
+        "Reconnaissance": {
+          "n": 1284,
+          "flagged": 0.0
+        },
+        "Shellcode": {
+          "n": 218,
+          "flagged": 0.0
+        },
+        "Worms": {
+          "n": 24,
+          "flagged": 0.0
+        }
+      }
     },
     "test": {
       "n": 82332,
@@ -44,7 +86,49 @@
           45332,
           0
         ]
-      ]
+      ],
+      "by_category": {
+        "Analysis": {
+          "n": 677,
+          "flagged": 0.0
+        },
+        "Backdoor": {
+          "n": 583,
+          "flagged": 0.0
+        },
+        "DoS": {
+          "n": 4089,
+          "flagged": 0.0
+        },
+        "Exploits": {
+          "n": 11132,
+          "flagged": 0.0
+        },
+        "Fuzzers": {
+          "n": 6062,
+          "flagged": 0.0
+        },
+        "Generic": {
+          "n": 18871,
+          "flagged": 0.0
+        },
+        "Normal": {
+          "n": 37000,
+          "flagged": 0.0
+        },
+        "Reconnaissance": {
+          "n": 3496,
+          "flagged": 0.0
+        },
+        "Shellcode": {
+          "n": 378,
+          "flagged": 0.0
+        },
+        "Worms": {
+          "n": 44,
+          "flagged": 0.0
+        }
+      }
     },
     "test_unseen": {
       "n": 73791,
@@ -64,7 +148,49 @@
           38263,
           0
         ]
-      ]
+      ],
+      "by_category": {
+        "Analysis": {
+          "n": 552,
+          "flagged": 0.0
+        },
+        "Backdoor": {
+          "n": 579,
+          "flagged": 0.0
+        },
+        "DoS": {
+          "n": 2085,
+          "flagged": 0.0
+        },
+        "Exploits": {
+          "n": 9330,
+          "flagged": 0.0
+        },
+        "Fuzzers": {
+          "n": 5801,
+          "flagged": 0.0
+        },
+        "Generic": {
+          "n": 17149,
+          "flagged": 0.0
+        },
+        "Normal": {
+          "n": 35528,
+          "flagged": 0.0
+        },
+        "Reconnaissance": {
+          "n": 2358,
+          "flagged": 0.0
+        },
+        "Shellcode": {
+          "n": 365,
+          "flagged": 0.0
+        },
+        "Worms": {
+          "n": 44,
+          "flagged": 0.0
+        }
+      }
     }
   },
   {
