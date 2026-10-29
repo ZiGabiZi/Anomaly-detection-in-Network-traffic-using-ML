@@ -8,7 +8,7 @@ Detecting malicious network flows on the UNSW-NB15 dataset, with supervised clas
 
 ## Status
 - ✅ Data loading and EDA
-- ⏳ Preprocessing
+- ✅ Preprocessing
 - ⏳ Evaluation framework
 - ⏳ Supervised models (Random Forest, gradient boosting)
 - ⏳ Anomaly detection (Isolation Forest, autoencoder)
@@ -38,7 +38,8 @@ The dataset files are not stored in this repository. Download `UNSW_NB15_trainin
 
 ### Data handling
 - The official train/test split is kept (175,341 / 82,332 flows).
-- Train: feature vectors with more than one label keep the majority label (ties are dropped), then exact duplicates are removed (`resolve_conflicts` + `deduplicate` in `src/netad/data.py`).
+- Train is cleaned separately for each task (`label` for binary, `attack_cat` for multi-class): feature vectors with more than one label keep the majority label (ties are dropped), then only one row per feature vector is kept. 20% of it is then held out as a stratified validation set, used for thresholds and tuning (`train_val_split` in `src/netad/data.py`).
+- Preprocessing is fitted on the training part only: `log1p` + standard scaling on numeric columns, one-hot on `proto`, `service`, `state` with rare and unseen categories grouped together (`build_preprocessor` in `src/netad/preprocessing.py`).
 - Test is not modified. Results are reported on the full test set and on the test rows whose features do not appear in train (10.4% of test rows do).
 
 ### Known dataset issues

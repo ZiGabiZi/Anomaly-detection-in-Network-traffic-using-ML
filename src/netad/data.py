@@ -2,6 +2,7 @@
 
 from pathlib import Path
 import pandas as pd
+from sklearn.model_selection import train_test_split
 
 # src/netad/data.py -> project root is two levels above the package
 DATA_DIR = Path(__file__).resolve().parents[2] / "data" / "raw"
@@ -91,3 +92,20 @@ def overlap_with_train(train_df: pd.DataFrame, test_df: pd.DataFrame) -> pd.Seri
     train_vectors = train_df[FEATURES].drop_duplicates()
     merged = test_df[FEATURES].merge(train_vectors, on=FEATURES, how="left", indicator=True)
     return pd.Series(merged["_merge"].eq("both").to_numpy(), index=test_df.index, name="in_train")
+
+
+def train_val_split(
+    train_df: pd.DataFrame, target: str, val_size: float = 0.2, seed: int = 42
+) -> tuple[pd.DataFrame, pd.DataFrame, pd.Series, pd.Series]:
+    """Clean train for `target`, then a stratified train/validation split.
+
+    Returns X_train, X_val, y_train, y_val.
+    """
+    df = resolve_conflicts(train_df, target)
+    # one target value per vector now, so identical features = duplicate for this task
+    df = df.drop_duplicates(subset=FEATURES)
+    X_train, X_val, y_train, y_val = train_test_split(
+        df[FEATURES], df[target],
+        test_size=val_size, stratify=df[MULTI_TARGET], random_state=seed,
+    )
+    return X_train, X_val, y_train, y_val
