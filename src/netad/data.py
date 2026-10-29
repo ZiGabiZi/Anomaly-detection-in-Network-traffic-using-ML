@@ -66,6 +66,26 @@ def deduplicate(df: pd.DataFrame) -> pd.DataFrame:
     return df.drop_duplicates(subset=FEATURES + TARGETS)
 
 
+def resolve_conflicts(df: pd.DataFrame, target: str = MULTI_TARGET, policy: str = "majority") -> pd.DataFrame:
+    """Keep a single `target` value per feature vector. Train only, call before deduplicate.
+
+    "drop": remove every vector that has more than one value.
+    "majority": keep the most frequent value, drop the vector on ties.
+    """
+    if policy not in ("drop", "majority"):
+        raise ValueError(f"policy must be 'drop' or 'majority', got {policy!r}")
+
+    counts = df.groupby(FEATURES + [target]).size()
+    if policy == "drop":
+        ok = counts.groupby(level=FEATURES).transform("size") == 1
+    else:
+        is_top = counts == counts.groupby(level=FEATURES).transform("max")
+        ok = is_top & (is_top.groupby(level=FEATURES).transform("sum") == 1)
+
+    keep = pd.MultiIndex.from_frame(df[FEATURES + [target]]).isin(ok[ok].index)
+    return df[keep]
+
+
 def overlap_with_train(train_df: pd.DataFrame, test_df: pd.DataFrame) -> pd.Series:
     """Boolean mask over `test_df`: True where the feature vector also appears in `train_df`."""
     train_vectors = train_df[FEATURES].drop_duplicates()
