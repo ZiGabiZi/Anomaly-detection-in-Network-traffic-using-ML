@@ -5,6 +5,7 @@ from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 from sklearn.metrics import (
     ConfusionMatrixDisplay, PrecisionRecallDisplay, RocCurveDisplay,
     average_precision_score, confusion_matrix, precision_recall_curve, roc_auc_score, roc_curve,
@@ -156,6 +157,17 @@ def save_result(model: str, task: str, metrics: dict, params: dict | None = None
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(results, indent=2) + "\n", encoding="utf-8")
     return results
+
+
+def results_table(task: str, subset: str = "test", metrics: list[str] | None = None,
+                  path: Path | str = RESULTS_PATH) -> pd.DataFrame:
+    """One row per model saved for `task`, with `metrics` taken from `subset` (val, test, test_unseen)."""
+    if metrics is None:
+        metrics = (["recall", "fpr", "precision", "f1", "roc_auc", "pr_auc"] if task == "binary"
+                   else ["accuracy", "macro_f1", "weighted_f1"])
+    results = json.loads(Path(path).read_text(encoding="utf-8"))
+    rows = {r["model"]: {m: r[subset][m] for m in metrics} for r in results if r["task"] == task}
+    return pd.DataFrame.from_dict(rows, orient="index", columns=metrics)
 
 
 def plot_roc_pr(y_true, scores, title: str = "", path: Path | str | None = None):

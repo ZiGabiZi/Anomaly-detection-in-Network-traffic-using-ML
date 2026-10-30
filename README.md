@@ -11,7 +11,8 @@ Detecting malicious network flows on the UNSW-NB15 dataset, with supervised clas
 - ✅ Preprocessing
 - ✅ Evaluation framework
 - ✅ Supervised models (logistic regression, random forest, gradient boosting)
-- ⏳ Anomaly detection (Isolation Forest, autoencoder)
+- ✅ Anomaly detection: Isolation Forest
+- ⏳ Anomaly detection: autoencoder, leave-one-attack-out
 - ⏳ Inference script
 
 ---
@@ -46,6 +47,7 @@ The dataset files are not stored in this repository. Download `UNSW_NB15_trainin
 - The train/test overlap is uneven across classes: 49% of DoS test rows also appear in train, against 4% of Normal. DoS scores on the full test set will be optimistic.
 - In test, 91% of Analysis and 90% of Backdoor rows share their feature vector with another class. Multi-class accuracy can't go above ~94%, and recall on these two classes can't go above ~10%. Binary detection is not affected.
 - The TTL columns (`sttl`, `dttl`, `ct_state_ttl`) alone give ~79% test accuracy. They most likely reflect the testbed topology rather than attack behaviour.
+- Test repeats some attack flows many times, mostly ones that are easy to detect. Counting each distinct flow once, test recall drops from 89% to 80% for the random forest and from 61% to 29% for Isolation Forest.
 
 Details in `notebooks/01_eda.ipynb`.
 
@@ -59,4 +61,5 @@ Details in `notebooks/01_eda.ipynb`.
 - `00_original_reference.ipynb` – the old version, kept for reference only
 - `01_eda.ipynb` – dataset analysis
 - `02_supervised.ipynb` – supervised models: tuning, test results, TTL ablation, permutation importance
+- `03_anomaly.ipynb` – models trained on normal traffic only (Isolation Forest), compared with the supervised ones
 - `checks.ipynb` – asserts on `src/netad/`, run it after every change there
