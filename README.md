@@ -10,7 +10,7 @@ Detecting malicious network flows on the UNSW-NB15 dataset, with supervised clas
 - ✅ Data loading and EDA
 - ✅ Preprocessing
 - ✅ Evaluation framework
-- ⏳ Supervised models (Random Forest, gradient boosting)
+- ✅ Supervised models (logistic regression, random forest, gradient boosting)
 - ⏳ Anomaly detection (Isolation Forest, autoencoder)
 - ⏳ Inference script
 
@@ -58,5 +58,5 @@ Details in `notebooks/01_eda.ipynb`.
 ## Notebooks
 - `00_original_reference.ipynb` – the old version, kept for reference only
 - `01_eda.ipynb` – dataset analysis
-- `02_supervised.ipynb` – supervised models (so far the Dummy baseline)
+- `02_supervised.ipynb` – supervised models: tuning, test results, TTL ablation, permutation importance
 - `checks.ipynb` – asserts on `src/netad/`, run it after every change there
