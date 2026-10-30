@@ -11,8 +11,8 @@ Detecting malicious network flows on the UNSW-NB15 dataset, with supervised clas
 - ✅ Preprocessing
 - ✅ Evaluation framework
 - ✅ Supervised models (logistic regression, random forest, gradient boosting)
-- ✅ Anomaly detection: Isolation Forest
-- ⏳ Anomaly detection: autoencoder, leave-one-attack-out
+- ✅ Anomaly detection: Isolation Forest, autoencoder (PyTorch)
+- ⏳ Anomaly detection: leave-one-attack-out
 - ⏳ Inference script
 
 ---
@@ -55,12 +55,12 @@ Details in `notebooks/01_eda.ipynb`.
 - Binary: precision, recall, F1, FPR, ROC-AUC, PR-AUC and confusion matrix. The alert threshold is chosen on validation with an FPR budget (1% by default), not on test.
 - Detection rate per attack category, and `macro_detection`, their mean over the 9 attack categories. Recall depends on which categories are frequent in a given set, `macro_detection` does not.
 - Multi-class: accuracy, macro and weighted F1, per-class precision/recall/F1 and confusion matrix.
-- Every model is reported on validation, on the full test set, on the unseen test rows and on the distinct test rows. All rows give the alert volume on the traffic as it comes; models are compared on the distinct rows.
+- Every model is reported on validation, on the full test set, on the unseen test rows and on the distinct test rows. All rows give the alert volume on the traffic as it comes. Models are selected on validation and reported on the distinct test rows; test results never change which model is picked.
 - Results are collected in `reports/results.json` (`src/netad/evaluation.py`).
 
 ## Notebooks
 - `00_original_reference.ipynb` – the old version, kept for reference only
 - `01_eda.ipynb` – dataset analysis
 - `02_supervised.ipynb` – supervised models: tuning, test results, TTL ablation, permutation importance
-- `03_anomaly.ipynb` – models trained on normal traffic only (Isolation Forest), compared with the supervised ones
+- `03_anomaly.ipynb` – models trained on normal traffic only (Isolation Forest, autoencoder), compared with the supervised ones. The trained autoencoder, its preprocessor and threshold are saved to `models/` (not in git)
 - `checks.ipynb` – asserts on `src/netad/`, run it after every change there
