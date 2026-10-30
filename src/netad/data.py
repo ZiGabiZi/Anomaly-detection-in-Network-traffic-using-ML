@@ -94,6 +94,11 @@ def overlap_with_train(train_df: pd.DataFrame, test_df: pd.DataFrame) -> pd.Seri
     return pd.Series(merged["_merge"].eq("both").to_numpy(), index=test_df.index, name="in_train")
 
 
+def distinct_rows(df: pd.DataFrame) -> pd.Series:
+    """Boolean mask over `df`: True for the first row of each feature vector + attack_cat, False for repeats."""
+    return (~df.duplicated(FEATURES + [MULTI_TARGET])).rename("distinct")
+
+
 def train_val_split(
     train_df: pd.DataFrame, target: str, val_size: float = 0.2, seed: int = 42
 ) -> tuple[pd.DataFrame, pd.DataFrame, pd.Series, pd.Series]:

@@ -32,7 +32,9 @@ def detection_by_category(categories, y_pred) -> dict:
 def evaluate_binary(y_true, scores, threshold: float, categories=None) -> dict:
     """Metrics for attack (1) vs normal (0); a flow is flagged when score >= threshold.
 
-    With `categories` (attack_cat of each row) also adds the detection rate per category.
+    With `categories` (attack_cat of each row) also adds the detection rate per category and
+    `macro_detection`, the mean of those rates over attack categories. Unlike recall it doesn't
+    change with how many flows each category has.
     """
     y_true = np.asarray(y_true)
     scores = np.asarray(scores, dtype=float)
@@ -55,7 +57,12 @@ def evaluate_binary(y_true, scores, threshold: float, categories=None) -> dict:
         "confusion_matrix": [[tn, fp], [fn, tp]],
     }
     if categories is not None:
-        metrics["by_category"] = detection_by_category(categories, y_pred)
+        by_category = detection_by_category(categories, y_pred)
+        attack_cats = np.unique(np.asarray(categories)[y_true == 1])
+        metrics["macro_detection"] = (
+            float(np.mean([by_category[str(c)]["flagged"] for c in attack_cats])) if len(attack_cats) else None
+        )
+        metrics["by_category"] = by_category
     return metrics
 
 
@@ -124,26 +131,25 @@ def evaluate_multiclass(y_true, y_pred, labels: list[str] | None = None) -> dict
     }
 
 
-def evaluate_test(evaluate, y_true, values, unseen, categories=None, **kwargs) -> dict:
-    """Run `evaluate` on the whole test set and on the rows not seen in train.
+def evaluate_test(evaluate, y_true, values, unseen, distinct, categories=None, **kwargs) -> dict:
+    """Run `evaluate` on the whole test set, on the rows not seen in train and on the distinct rows.
 
-    `values` are scores (binary) or predictions (multi-class), `unseen` is a boolean mask.
-    `categories` is only for evaluate_binary and gets the same mask.
+    `values` are scores (binary) or predictions (multi-class). `unseen` and `distinct` are boolean
+    masks (overlap_with_train negated, distinct_rows). `categories` is only for evaluate_binary
+    and gets the same masks.
     """
     y_true = np.asarray(y_true)
     values = np.asarray(values)
-    unseen = np.asarray(unseen, dtype=bool)
+    masks = {
+        "test": np.ones(len(y_true), dtype=bool),
+        "test_unseen": np.asarray(unseen, dtype=bool),
+        "test_distinct": np.asarray(distinct, dtype=bool),
+    }
     if categories is None:
-        return {
-            "test": evaluate(y_true, values, **kwargs),
-            "test_unseen": evaluate(y_true[unseen], values[unseen], **kwargs),
-        }
+        return {name: evaluate(y_true[m], values[m], **kwargs) for name, m in masks.items()}
 
     categories = np.asarray(categories)
-    return {
-        "test": evaluate(y_true, values, categories=categories, **kwargs),
-        "test_unseen": evaluate(y_true[unseen], values[unseen], categories=categories[unseen], **kwargs),
-    }
+    return {name: evaluate(y_true[m], values[m], categories=categories[m], **kwargs) for name, m in masks.items()}
 
 
 def save_result(model: str, task: str, metrics: dict, params: dict | None = None,
@@ -161,12 +167,14 @@ def save_result(model: str, task: str, metrics: dict, params: dict | None = None
 
 def results_table(task: str, subset: str = "test", metrics: list[str] | None = None,
                   path: Path | str = RESULTS_PATH) -> pd.DataFrame:
-    """One row per model saved for `task`, with `metrics` taken from `subset` (val, test, test_unseen)."""
+    """One row per model saved for `task`, with `metrics` taken from `subset`
+    (val, test, test_unseen, test_distinct). A metric missing from an entry shows as NaN.
+    """
     if metrics is None:
-        metrics = (["recall", "fpr", "precision", "f1", "roc_auc", "pr_auc"] if task == "binary"
+        metrics = (["recall", "macro_detection", "fpr", "precision", "f1", "roc_auc", "pr_auc"] if task == "binary"
                    else ["accuracy", "macro_f1", "weighted_f1"])
     results = json.loads(Path(path).read_text(encoding="utf-8"))
-    rows = {r["model"]: {m: r[subset][m] for m in metrics} for r in results if r["task"] == task}
+    rows = {r["model"]: {m: r[subset].get(m) for m in metrics} for r in results if r["task"] == task}
     return pd.DataFrame.from_dict(rows, orient="index", columns=metrics)
 
 
