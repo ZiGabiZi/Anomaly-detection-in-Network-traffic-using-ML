@@ -29,6 +29,19 @@ def detection_by_category(categories, y_pred) -> dict:
     }
 
 
+def wilson_interval(k: int, n: int, z: float = 1.96) -> tuple[float, float]:
+    """Wilson score interval for the proportion k / n, 95% with the default z.
+
+    Assumes independent rows. With near-identical flows in the data the real interval is wider.
+    """
+    if n == 0:
+        return (float("nan"), float("nan"))
+    p = k / n
+    centre = (p + z**2 / (2 * n)) / (1 + z**2 / n)
+    half = z / (1 + z**2 / n) * np.sqrt(p * (1 - p) / n + z**2 / (4 * n**2))
+    return float(max(0.0, centre - half)), float(min(1.0, centre + half))
+
+
 def fpr_by_group(groups_val, flagged_val, groups_test, flagged_test) -> pd.DataFrame:
     """Where the false alarms come from: normal flows split into groups (e.g. by sttl).
 
