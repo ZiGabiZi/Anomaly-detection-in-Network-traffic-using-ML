@@ -6,6 +6,41 @@ Detecting malicious network flows on the UNSW-NB15 dataset, with supervised clas
 
 ---
 
+## Security perspective
+What the binary models would mean for a SOC. Numbers are on the UNSW-NB15 test set with the alert threshold set for 1% FPR on validation; details in `notebooks/05_security.ipynb`.
+
+**Alert volume.** On a sensor seeing 1M flows a day, the random forest's 4.0% test FPR means ~39,000 false alerts a day instead of the ~10,000 planned at 1%. If 1% of flows are attacks it catches 80% of them and 17% of its alerts are real; at 0.1%, closer to a real network, 2%, about 50 false alerts for every true one. A per-flow classifier is not usable as an alert source on its own: flows would have to be grouped by host and time window and ranked before an analyst sees them.
+
+**Where the false alarms are.** 87% of them are normal flows with `sttl` 254, which is 41% of normal test traffic and 19% of validation: TCP connections with no recognised service closed with FIN, and one-way UDP flows (state INT, 13% FPR). `sttl` is a marker, not the cause; a model trained without the TTL columns splits normal traffic the same way. It points at traffic from particular testbed hosts, a trait of the lab rather than of attacks. On a real network TTL depends on the operating system and the number of hops, so this is the first thing that would not carry over.
+
+**Blind spot: Fuzzers.** Three quarters of the missed attacks are Fuzzers, and 70% of distinct Fuzzers flows get through. The missed ones look like the false alarms: TCP, no service, FIN, sttl 254, ~10 packets in ~0.6 s, a few hundred bytes each way. At flow level that part of the attack traffic and that part of the normal traffic can't be told apart; payload or the sequence of a host's flows would be needed.
+
+**Where anomaly detection helps.** With Generic held out of training, the random forest catches 29-35% of it (three seeds), Isolation Forest and the autoencoder, which only ever see normal traffic, 80-87%. For the other categories the supervised model wins even without having seen them. Overall the anomaly detectors miss ~70% of distinct attack flows, depend strongly on their settings and, for the autoencoder, on the seed: a second opinion for unusual traffic, not the main detector.
+
+**MITRE ATT&CK.** UNSW-NB15 categories are traffic classes from an attack generator, not ATT&CK techniques, so the mapping is at tactic level and approximate. Detection rates are on distinct test rows; "held out" means the category was removed from training (`notebooks/04_leave_one_out.ipynb`).
+
+| Category | Tactic | Example technique | RF, seen | RF, held out (3 seeds) | Isolation Forest / autoencoder |
+|---|---|---|---|---|---|
+| Reconnaissance | Reconnaissance (TA0043), Discovery (TA0007) | T1595 Active Scanning, T1046 Network Service Discovery | 95% | 46-49% | 10% / 9% |
+| Analysis (port scans, spam, HTML file penetration) | Reconnaissance (TA0043), Discovery (TA0007) | T1046 Network Service Discovery | 87% | 87% | 82% / 78% |
+| Fuzzers | Reconnaissance (TA0043) | T1595.002 Vulnerability Scanning (closest) | 30% | 29-34% | 11% / 12% |
+| Exploits | Initial Access (TA0001), Execution (TA0002), Privilege Escalation (TA0004) | T1190 Exploit Public-Facing Application, T1068 Exploitation for Privilege Escalation | 93% | 76-78% | 17% / 20% |
+| Shellcode | Execution (TA0002) | the payload of an exploit | 87% | 78-81% | 0% / 0.5% |
+| Backdoor | Persistence (TA0003), Command and Control (TA0011) | T1071 Application Layer Protocol | 98% | 96-97% | 85% / 82% |
+| Worms | Lateral Movement (TA0008) | T1210 Exploitation of Remote Services | 93% (44 rows) | 93-95% | 16% / 16% |
+| DoS | Impact (TA0040) | T1498 Network Denial of Service, T1499 Endpoint Denial of Service | 92% | 89-90% | 39% / 38% |
+| Generic (attacks on block ciphers) | no clean match; closest is Credential Access (TA0006) | – | 98% | 29-35% | 80% / 80% |
+
+Read as coverage, the weakest stages are the early ones: scanning and fuzzing, especially when the model hasn't seen that kind of traffic, which is where an early warning would be worth most. Autoencoder numbers are for seed 42; other seeds move some categories a lot (Analysis 46-78%).
+
+**Limits.**
+- Synthetic traffic from 2015, generated with IXIA PerfectStorm in one testbed. All attack categories come from the same tool and hosts.
+- Shortcut features: TTL and other traits of the testbed hosts separate the classes. Nothing here shows the models would carry over to another network.
+- Decisions are per flow. These files have no timestamps or IP addresses, so flows can't be grouped by host or session or correlated over time; the `ct_*` counters (connections among the last 100) are the only multi-flow context.
+- The test file is 55% attacks, far from a real network, and was looked at many times during development (see Evaluation protocol), so the numbers are exploratory. Leave-one-attack-out is not evidence of zero-day detection.
+
+---
+
 ## Status
 - ✅ Data loading and EDA
 - ✅ Preprocessing
@@ -13,6 +48,7 @@ Detecting malicious network flows on the UNSW-NB15 dataset, with supervised clas
 - ✅ Supervised models (logistic regression, random forest, gradient boosting)
 - ✅ Anomaly detection: Isolation Forest, autoencoder (PyTorch)
 - ✅ Anomaly detection: leave-one-attack-out
+- ✅ Security perspective (error analysis, alert volume, MITRE ATT&CK mapping)
 - ⏳ Inference script
 
 ---
@@ -84,4 +120,5 @@ The current configurations are fixed for this benchmark. Any future model develo
 - `02_supervised.ipynb` – supervised models: tuning, test results, TTL ablation, permutation importance
 - `03_anomaly.ipynb` – models trained on normal traffic only (Isolation Forest, autoencoder), compared with the supervised ones. The trained autoencoder, its preprocessor and threshold are saved to `models/` (not in git)
 - `04_leave_one_out.ipynb` – each attack category held out of training in turn: does the random forest, Isolation Forest or the autoencoder still catch it
+- `05_security.ipynb` – false positives and false negatives of the random forest, alerts per day at realistic attack rates
 - `checks.ipynb` – asserts on `src/netad/`, run it after every change there
