@@ -12,7 +12,7 @@ Detecting malicious network flows on the UNSW-NB15 dataset, with supervised clas
 - ✅ Evaluation framework
 - ✅ Supervised models (logistic regression, random forest, gradient boosting)
 - ✅ Anomaly detection: Isolation Forest, autoencoder (PyTorch)
-- ⏳ Anomaly detection: leave-one-attack-out
+- ✅ Anomaly detection: leave-one-attack-out
 - ⏳ Inference script
 
 ---
@@ -57,10 +57,12 @@ Details in `notebooks/01_eda.ipynb`.
 - Multi-class: accuracy, macro and weighted F1, per-class precision/recall/F1 and confusion matrix.
 - Every model is reported on validation, on the full test set, on the unseen test rows and on the distinct test rows. All rows give the alert volume on the traffic as it comes. Models are selected on validation and reported on the distinct test rows; test results never change which model is picked.
 - Results are collected in `reports/results.json` (`src/netad/evaluation.py`).
+- Anomaly detector settings are compared with seeds 42, 1 and 2. The final evaluation uses seed 42. Autoencoder results can vary across machines and library versions, including the epoch at which training stops.
 
 ## Notebooks
 - `00_original_reference.ipynb` – the old version, kept for reference only
 - `01_eda.ipynb` – dataset analysis
 - `02_supervised.ipynb` – supervised models: tuning, test results, TTL ablation, permutation importance
 - `03_anomaly.ipynb` – models trained on normal traffic only (Isolation Forest, autoencoder), compared with the supervised ones. The trained autoencoder, its preprocessor and threshold are saved to `models/` (not in git)
+- `04_leave_one_out.ipynb` – each attack category held out of training in turn: does the random forest, Isolation Forest or the autoencoder still catch it
 - `checks.ipynb` – asserts on `src/netad/`, run it after every change there

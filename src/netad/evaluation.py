@@ -69,7 +69,7 @@ def evaluate_binary(y_true, scores, threshold: float, categories=None) -> dict:
 def choose_threshold(y_val, scores_val, mode: str = "fpr", max_fpr: float = 0.01) -> float:
     """Pick the threshold on validation data only.
 
-    "fpr": highest recall with FPR <= max_fpr (depends only on how normal traffic scores).
+    "fpr": highest recall among validation ROC points with FPR <= max_fpr.
     "f1": threshold with the best F1.
     """
     y_val = np.asarray(y_val)
