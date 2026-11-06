@@ -95,7 +95,11 @@ def overlap_with_train(train_df: pd.DataFrame, test_df: pd.DataFrame) -> pd.Seri
 
 
 def distinct_rows(df: pd.DataFrame) -> pd.Series:
-    """Boolean mask over `df`: True for the first row of each feature vector + attack_cat, False for repeats."""
+    """Keep the first row for each feature vector and attack category pair.
+
+    Identical feature vectors with different categories are kept separately.
+    The mask removes exact repeats within a category and does not imply independence.
+    """
     return (~df.duplicated(FEATURES + [MULTI_TARGET])).rename("distinct")
 
 

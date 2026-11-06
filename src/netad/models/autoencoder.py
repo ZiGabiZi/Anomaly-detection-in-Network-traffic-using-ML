@@ -53,7 +53,7 @@ def reconstruction_error(model: Autoencoder, X, batch_size: int = 4096) -> np.nd
 
 
 def train_autoencoder(X_train, X_val, bottleneck: int = 8, hidden: tuple[int, ...] = (32, 16),
-                      epochs: int = 500, batch_size: int = 256, lr: float = 1e-3, patience: int = 20,
+                      epochs: int = 1000, batch_size: int = 256, lr: float = 1e-3, patience: int = 20,
                       seed: int = 42) -> tuple[Autoencoder, list[dict]]:
     """Fit on X_train with early stopping on the reconstruction loss of X_val.
 

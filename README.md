@@ -46,18 +46,36 @@ The dataset files are not stored in this repository. Download `UNSW_NB15_trainin
 ### Known dataset issues
 - The train/test overlap is uneven across classes: 49% of DoS test rows also appear in train, against 4% of Normal. DoS scores on the full test set will be optimistic.
 - In test, 91% of Analysis and 90% of Backdoor rows share their feature vector with another class. Multi-class accuracy can't go above ~94%, and recall on these two classes can't go above ~10%. Binary detection is not affected.
-- The TTL columns (`sttl`, `dttl`, `ct_state_ttl`) alone give ~79% test accuracy. They most likely reflect the testbed topology rather than attack behaviour.
+- The TTL columns (`sttl`, `dttl`, `ct_state_ttl`) alone give ~79% test accuracy. They most likely reflect the testbed topology rather than attack behaviour. In training, `sttl` 31 appears only in normal traffic, attacks have 62 or 254. Normal test flows with sttl 31 get no false alarms from the random forest, those with 254 get 8.5%, and test has twice as much of that traffic as validation (41% vs 19% of normal flows). That accounts for the whole rise from 1% FPR on validation to 4.0% on test. Isolation Forest and the autoencoder show the same pattern without ever seeing an attack.
 - Test repeats some attack flows many times, mostly ones that are easy to detect (Generic is 42% of test attacks, 17% of the distinct ones). Counting each distinct flow once, test recall drops from 89% to 80% for the random forest and from 61% to 29% for Isolation Forest.
 
 Details in `notebooks/01_eda.ipynb`.
 
 ## Evaluation
-- Binary: precision, recall, F1, FPR, ROC-AUC, PR-AUC and confusion matrix. The alert threshold is chosen on validation with an FPR budget (1% by default), not on test.
+- Binary: precision, recall, F1, FPR, ROC-AUC, PR-AUC and confusion matrix. The alert threshold is chosen on validation with an FPR budget (1% by default), not on test (`choose_threshold` in `src/netad/evaluation.py`). The supervised models use the `"fpr"` mode: highest recall within the budget, so attack labels of validation are used too. Isolation Forest and the autoencoder use `"normal_quantile"`: the lowest normal score with at most 1% of normal validation flows at or above it, so no attack example is needed. Switching the anomaly detectors from `"fpr"` to `"normal_quantile"` left test results practically identical (recall changed by under 0.1 point).
 - Detection rate per attack category, and `macro_detection`, their mean over the 9 attack categories. Recall depends on which categories are frequent in a given set, `macro_detection` does not.
 - Multi-class: accuracy, macro and weighted F1, per-class precision/recall/F1 and confusion matrix.
-- Every model is reported on validation, on the full test set, on the unseen test rows and on the distinct test rows. All rows give the alert volume on the traffic as it comes. Models are selected on validation and reported on the distinct test rows; test results never change which model is picked.
+- Every model is reported on validation, on the full test set, on the unseen test rows and on the distinct test rows. All rows give the alert volume on the traffic as it comes. Final model selection uses validation metrics. Distinct test rows are used for exploratory comparisons.
+- Distinct test rows keep one row per pair of feature vector and `attack_cat`. Exact repeats within a category count once. If a vector has multiple category labels, each label is retained. Deduplication does not establish statistical independence: 8.7% of them differ from another row only in the 11 timing columns (`dur`, `rate`, `sload`, `dload`, `sinpkt`, `dinpkt`, `sjit`, `djit`, `tcprtt`, `synack`, `ackdat`), a third of Generic, and 4.6% share their feature vector with another category (12 rows have both Normal and an attack label, the rest are attack vs attack). The distinct subset shows how detection rates change when each feature vector and category pair has equal weight. Use the full test set for operational comparisons of FPR, precision and alert volume, where each flagged row counts as an alert. Grouping flows properly would need source IPs and timestamps, which only the full UNSW-NB15 CSVs have; for the same reason a bootstrap on distinct rows would give intervals that are too narrow.
 - Results are collected in `reports/results.json` (`src/netad/evaluation.py`).
 - Anomaly detector settings are compared with seeds 42, 1 and 2. The final evaluation uses seed 42. Autoencoder results can vary across machines and library versions, including the epoch at which training stops.
+
+## Evaluation protocol
+The UNSW-NB15 test split was inspected repeatedly during development. Its results are exploratory because that inspection informed choices about preprocessing, reporting and follow-up experiments.
+
+Decisions based on training and validation data
+- hyperparameters of the supervised models (cross-validation on the training part);
+- the final model of each task (validation partial ROC-AUC / macro-F1; the random forest was kept although gradient boosting scored higher on test);
+- Isolation Forest and autoencoder settings (validation, 3 seeds);
+- alert thresholds under a 1% validation FPR budget (highest recall within the budget for the supervised models, normal validation scores only for Isolation Forest and the autoencoder).
+
+Decisions informed by test inspection
+- reporting on distinct test rows and adding `macro_detection`, after seeing how repeated flows raise recall;
+- the six categories held out in `04_leave_one_out`, with exclusions informed in part by earlier test results;
+- the FPR breakdown by `sttl`, computed on test;
+- `OneHotEncoder(handle_unknown="infrequent_if_exist")`, after seeing `state` values in test that train doesn't have (5 rows).
+
+The current configurations are fixed for this benchmark. Any future model development uses training and validation data. Before evaluating on independently collected traffic, freeze the preprocessing, model, threshold and metrics. Use that evaluation to assess generalisation beyond the UNSW-NB15 testbed. CIC-UNSW-NB15 and the full 2.5M-record UNSW-NB15 come from the same captures and testbed, so they don't qualify; a model trained on CICFlowMeter features (CIC-UNSW-NB15) and evaluated on independently collected traffic with compatible feature definitions is one possible design.
 
 ## Notebooks
 - `00_original_reference.ipynb` – the old version, kept for reference only

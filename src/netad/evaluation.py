@@ -29,6 +29,32 @@ def detection_by_category(categories, y_pred) -> dict:
     }
 
 
+def fpr_by_group(groups_val, flagged_val, groups_test, flagged_test) -> pd.DataFrame:
+    """Where the false alarms come from: normal flows split into groups (e.g. by sttl).
+
+    Inputs are normal flows only. For validation and test: number of flows in each group, its
+    share of the normal traffic and its FPR. "fpr contribution" (test) is flows * FPR / all
+    normal flows, so it sums to the overall test FPR.
+    """
+    out = {}
+    for name, groups, flagged in [("val", groups_val, flagged_val), ("test", groups_test, flagged_test)]:
+        df = pd.DataFrame({"group": np.asarray(groups), "flagged": np.asarray(flagged, dtype=bool)})
+        stats = df.groupby("group")["flagged"].agg(["size", "mean"])
+        out[(name, "flows")] = stats["size"]
+        out[(name, "share")] = stats["size"] / len(df)
+        out[(name, "fpr")] = stats["mean"]
+        if name == "test":
+            out[(name, "fpr contribution")] = stats["size"] * stats["mean"] / len(df)
+    table = pd.DataFrame(out)
+    table.columns = pd.MultiIndex.from_tuples(table.columns)
+    # a group missing from one set has no flows there; its FPR stays NaN
+    filled = [c for c in table.columns if c[1] in ("flows", "share", "fpr contribution")]
+    table[filled] = table[filled].fillna(0)
+    for name in ("val", "test"):
+        table[(name, "flows")] = table[(name, "flows")].astype(int)
+    return table
+
+
 def evaluate_binary(y_true, scores, threshold: float, categories=None) -> dict:
     """Metrics for attack (1) vs normal (0); a flow is flagged when score >= threshold.
 
@@ -69,11 +95,26 @@ def evaluate_binary(y_true, scores, threshold: float, categories=None) -> dict:
 def choose_threshold(y_val, scores_val, mode: str = "fpr", max_fpr: float = 0.01) -> float:
     """Pick the threshold on validation data only.
 
-    "fpr": highest recall among validation ROC points with FPR <= max_fpr.
+    "fpr": highest recall among validation ROC points with FPR <= max_fpr. Attack labels are
+        used: ROC points sit at observed scores, so the threshold can land on an attack's score
+        between two normal ones.
+    "normal_quantile": smallest normal score v with mean(normal >= v) <= max_fpr. Only the
+        normal flows of validation are used, attack scores don't matter.
     "f1": threshold with the best F1.
     """
     y_val = np.asarray(y_val)
     scores_val = np.asarray(scores_val, dtype=float)
+
+    if mode == "normal_quantile":
+        normal = np.sort(scores_val[y_val == 0])
+        # candidates are the distinct normal scores, so ties at the limit can't push FPR over budget
+        values = np.unique(normal)
+        # count / n, same arithmetic as the FPR in evaluate_binary (1 - k / n can round above the budget)
+        above = (len(normal) - np.searchsorted(normal, values, side="left")) / len(normal)
+        ok = np.flatnonzero(above <= max_fpr)
+        if len(ok) == 0:
+            return float(np.nextafter(normal[-1], np.inf))
+        return float(values[ok[0]])
 
     if mode == "fpr":
         fpr, tpr, thresholds = roc_curve(y_val, scores_val)
@@ -91,7 +132,7 @@ def choose_threshold(y_val, scores_val, mode: str = "fpr", max_fpr: float = 0.01
         f1 = np.divide(2 * p * r, p + r, out=np.zeros_like(p), where=(p + r) > 0)
         return float(thresholds[np.argmax(f1)])
 
-    raise ValueError(f"mode must be 'fpr' or 'f1', got {mode!r}")
+    raise ValueError(f"mode must be 'fpr', 'normal_quantile' or 'f1', got {mode!r}")
 
 
 def evaluate_multiclass(y_true, y_pred, labels: list[str] | None = None) -> dict:
