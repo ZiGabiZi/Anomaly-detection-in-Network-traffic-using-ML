@@ -62,7 +62,8 @@ def save_forest(model: Pipeline, info: dict, directory: Path | str = MODELS_DIR)
     directory = Path(directory)
     directory.mkdir(parents=True, exist_ok=True)
     name = NAMES[info["task"]]
-    joblib.dump(model, directory / f"{name}.joblib")
+    # compressed: ~70 MB instead of ~330 MB for the binary forest, a few seconds more to save
+    joblib.dump(model, directory / f"{name}.joblib", compress=3)
     meta = {
         **info,
         "created": datetime.now(timezone.utc).isoformat(timespec="seconds"),
@@ -97,10 +98,27 @@ def load_forest(task: str, directory: Path | str = MODELS_DIR) -> tuple[Pipeline
     return joblib.load(path), meta
 
 
+def unknown_categories(model: Pipeline, df: pd.DataFrame) -> dict[str, int]:
+    """Number of rows per categorical column whose value was never seen in training.
+
+    The model handles them (they go to the "infrequent" one-hot column), but many of them
+    mean the traffic no longer looks like the training data.
+    """
+    preprocessor = model.named_steps["columntransformer"]
+    encoder = preprocessor.named_transformers_["cat"]
+    columns = next(cols for name, _, cols in preprocessor.transformers_ if name == "cat")
+    counts = {col: int((~df[col].isin(seen)).to_numpy().sum()) for col, seen in zip(columns, encoder.categories_)}
+    return {col: n for col, n in counts.items() if n}
+
+
 def score_flows(df: pd.DataFrame, model: Pipeline, threshold: float,
                 category_model: Pipeline | None = None) -> pd.DataFrame:
-    """One row per flow: attack score, alert (score >= threshold), and the predicted category
-    if `category_model` is given. The id column is kept when present."""
+    """One row per flow: attack score, alert (score >= threshold) and, if `category_model` is
+    given, the most likely attack category for flows with an alert (empty otherwise).
+
+    The category is picked among attack classes only, so it can't say Normal for an alert.
+    The id column is kept when present.
+    """
     check_columns(df)
     X = df[FEATURES]
     scores = model.predict_proba(X)[:, 1]
@@ -108,5 +126,9 @@ def score_flows(df: pd.DataFrame, model: Pipeline, threshold: float,
     if ID_COL in df.columns:
         out.insert(0, ID_COL, df[ID_COL])
     if category_model is not None:
-        out["category"] = category_model.predict(X)
+        classes = category_model.classes_
+        proba = category_model.predict_proba(X)
+        proba[:, classes == "Normal"] = -1
+        category = classes[proba.argmax(axis=1)]
+        out["category"] = pd.Series(category, index=df.index).where(out["alert"])
     return out

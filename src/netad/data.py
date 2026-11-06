@@ -1,6 +1,7 @@
 """Loading the UNSW-NB15 train/test CSVs from data/raw/."""
 
 from pathlib import Path
+import numpy as np
 import pandas as pd
 from sklearn.model_selection import train_test_split
 
@@ -63,17 +64,30 @@ def load_unsw(split: str, data_dir: Path | str | None = None) -> tuple[pd.DataFr
 
 
 def check_columns(df: pd.DataFrame) -> None:
-    """Raise ValueError if `df` can't be scored: a feature column is missing, has empty values
-    or, for numeric features, holds text. Other columns are ignored."""
+    """Raise ValueError if `df` can't be scored: no rows, a feature column missing or with empty
+    values, or a numeric feature holding text, negative or infinite values (every UNSW-NB15
+    feature is a count, size, time or rate). Other columns are ignored.
+
+    A model quietly scoring impossible values would be easy to evade, so they are rejected.
+    """
+    # checked first: with no rows pandas reads every column as text
+    if len(df) == 0:
+        raise ValueError("input has no rows")
     missing = [c for c in FEATURES if c not in df.columns]
     if missing:
         raise ValueError(f"missing feature columns: {missing}")
-    empty = [c for c in FEATURES if df[c].isna().any()]
+    empty = [c for c in FEATURES if df[c].isna().to_numpy().any()]
     if empty:
         raise ValueError(f"empty values in columns: {empty}")
     not_numeric = [c for c in NUMERIC if not pd.api.types.is_numeric_dtype(df[c])]
     if not_numeric:
         raise ValueError(f"non-numeric values in numeric columns: {not_numeric}")
+    negative = [c for c in NUMERIC if (df[c].to_numpy() < 0).any()]
+    if negative:
+        raise ValueError(f"negative values in columns: {negative}")
+    infinite = [c for c in NUMERIC if np.isinf(df[c].to_numpy()).any()]
+    if infinite:
+        raise ValueError(f"infinite values in columns: {infinite}")
 
 
 def deduplicate(df: pd.DataFrame) -> pd.DataFrame:

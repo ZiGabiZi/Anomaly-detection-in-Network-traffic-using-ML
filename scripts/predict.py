@@ -1,8 +1,9 @@
 """Score network flows with the random forest saved by scripts/train.py.
 
 The input CSV needs the 42 UNSW-NB15 feature columns (other columns are ignored). The output has
-one row per flow: id (if the input has one), score, alert and, with --category, the predicted
-attack category.
+one row per flow: id (if the input has one), score, alert and, with --category, the most likely
+attack category for flows with an alert. The category is indicative only: the multi-class model
+has a macro-F1 of about 0.50 on test, and Analysis, Backdoor and DoS mostly come out as Exploits.
 """
 
 import argparse
@@ -12,7 +13,7 @@ from pathlib import Path
 import pandas as pd
 
 from netad.models import MODELS_DIR
-from netad.models.forest import load_forest, score_flows
+from netad.models.forest import load_forest, score_flows, unknown_categories
 
 SECURITY = ("Models are loaded with joblib, which runs code stored in the file (pickle). "
             "Only load models you trained yourself with scripts/train.py.")
@@ -38,6 +39,9 @@ def main(argv: list[str] | None = None) -> int:
     except (FileNotFoundError, ValueError) as e:
         print(f"error: {e}", file=sys.stderr)
         return 2
+
+    for col, n in unknown_categories(model, flows).items():
+        print(f"warning: {n} flows with {col} values not seen in training", file=sys.stderr)
 
     out.to_csv(args.output, index=False)
     n_alerts = int(out["alert"].to_numpy().sum())

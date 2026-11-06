@@ -84,11 +84,13 @@ Score a CSV of flows:
 ```bash
 python scripts/predict.py --input data/raw/UNSW_NB15_testing-set.csv --output alerts.csv --category
 ```
-The input needs the 42 UNSW-NB15 feature columns; other columns are ignored, and a missing column, an empty value or text in a numeric column stops the script with an error naming the column. The output has one row per flow: `id` (if the input has one), `score`, `alert` (score at or above the threshold) and, with `--category`, the predicted attack category. On the test file this gives the numbers of `02_supervised`: 89.1% of attacks flagged at 4.0% FPR.
+The input needs the 42 UNSW-NB15 feature columns; other columns are ignored. Input that can't be scored stops the script with an error naming the column: a missing column, an empty value, text in a numeric column, a negative or infinite value (every feature is a count, size, time or rate), or a file with no rows. A detector that quietly scored impossible values would be easy to evade. Values of `proto`, `service` or `state` never seen in training are scored (they share the "infrequent" one-hot column) but counted in a warning, as a sign that the traffic has drifted from the training data; on the test file that is 33 flows for `proto` and 5 for `state`.
+
+The output has one row per flow: `id` (if the input has one), `score` and `alert` (score at or above the threshold). With `--category` it also has the most likely attack category, for flows with an alert only, picked among attack classes so it never says Normal for an alert. It is indicative: the multi-class model has a macro-F1 of about 0.50 on test, and Analysis, Backdoor and DoS mostly come out as Exploits. On the test file the alerts match `02_supervised`: 89.1% of attacks flagged at 4.0% FPR.
 
 **Security note:** the models are saved with `joblib`, which uses pickle: loading a file runs code stored in it. Only load models you trained yourself. The autoencoder weights are loaded with `torch.load(..., weights_only=True)`.
 
-The saved random forests are large (about 330 MB binary, 230 MB multi-class). Scores are averaged over trees in parallel threads, so the last digit of a score can differ between runs (~1e-16).
+The random forests are saved compressed (about 70 MB binary, 35 MB multi-class). Scores are averaged over trees in parallel threads, so the last digit of a score, and of the threshold computed from validation scores, can differ between runs (~1e-16).
 
 ### Data handling
 - The official train/test split is kept (175,341 / 82,332 flows).
