@@ -49,7 +49,7 @@ Read as coverage, the weakest stages are the early ones: scanning and fuzzing, e
 - ✅ Anomaly detection: Isolation Forest, autoencoder (PyTorch)
 - ✅ Anomaly detection: leave-one-attack-out
 - ✅ Security perspective (error analysis, alert volume, MITRE ATT&CK mapping)
-- ⏳ Inference script
+- ✅ Training and inference scripts (`scripts/train.py`, `scripts/predict.py`)
 
 ---
 
@@ -72,6 +72,23 @@ Without an NVIDIA GPU, the CPU-only PyTorch build is much smaller: `pip install 
 
 ## Data
 The dataset files are not stored in this repository. Download `UNSW_NB15_training-set.csv` and `UNSW_NB15_testing-set.csv` from the [UNSW-NB15 page](https://research.unsw.edu.au/projects/unsw-nb15-dataset) and place them in `data/raw/`.
+
+## Usage
+Train the random forest and save it to `models/` (about a minute; `--multiclass` also trains the attack category model):
+```bash
+python scripts/train.py --multiclass
+```
+It uses the hyperparameters saved in `reports/results.json` by `02_supervised` with the same split and seed, so it rebuilds the model reported there; the alert threshold is the one for 1% FPR on validation. Next to each model a `.json` file records the threshold, validation results, creation time and library versions.
+
+Score a CSV of flows:
+```bash
+python scripts/predict.py --input data/raw/UNSW_NB15_testing-set.csv --output alerts.csv --category
+```
+The input needs the 42 UNSW-NB15 feature columns; other columns are ignored, and a missing column, an empty value or text in a numeric column stops the script with an error naming the column. The output has one row per flow: `id` (if the input has one), `score`, `alert` (score at or above the threshold) and, with `--category`, the predicted attack category. On the test file this gives the numbers of `02_supervised`: 89.1% of attacks flagged at 4.0% FPR.
+
+**Security note:** the models are saved with `joblib`, which uses pickle: loading a file runs code stored in it. Only load models you trained yourself. The autoencoder weights are loaded with `torch.load(..., weights_only=True)`.
+
+The saved random forests are large (about 330 MB binary, 230 MB multi-class). Scores are averaged over trees in parallel threads, so the last digit of a score can differ between runs (~1e-16).
 
 ### Data handling
 - The official train/test split is kept (175,341 / 82,332 flows).

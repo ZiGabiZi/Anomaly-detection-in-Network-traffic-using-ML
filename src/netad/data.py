@@ -62,6 +62,20 @@ def load_unsw(split: str, data_dir: Path | str | None = None) -> tuple[pd.DataFr
     return df[FEATURES], df[BINARY_TARGET], df[MULTI_TARGET]
 
 
+def check_columns(df: pd.DataFrame) -> None:
+    """Raise ValueError if `df` can't be scored: a feature column is missing, has empty values
+    or, for numeric features, holds text. Other columns are ignored."""
+    missing = [c for c in FEATURES if c not in df.columns]
+    if missing:
+        raise ValueError(f"missing feature columns: {missing}")
+    empty = [c for c in FEATURES if df[c].isna().any()]
+    if empty:
+        raise ValueError(f"empty values in columns: {empty}")
+    not_numeric = [c for c in NUMERIC if not pd.api.types.is_numeric_dtype(df[c])]
+    if not_numeric:
+        raise ValueError(f"non-numeric values in numeric columns: {not_numeric}")
+
+
 def deduplicate(df: pd.DataFrame) -> pd.DataFrame:
     """Drop rows identical on features and both labels (`id` is ignored, it is always unique)."""
     return df.drop_duplicates(subset=FEATURES + TARGETS)

@@ -10,7 +10,7 @@ import torch
 from torch import nn
 from torch.utils.data import DataLoader, TensorDataset
 
-MODELS_DIR = Path(__file__).resolve().parents[3] / "models"
+from netad.models import MODELS_DIR
 
 
 def _mlp(sizes: list[int]) -> nn.Sequential:
