@@ -9,27 +9,27 @@ Detecting malicious network flows on the UNSW-NB15 dataset, with supervised clas
 ## Security perspective
 What the binary models would mean for a SOC. Numbers are on the UNSW-NB15 test set with the alert threshold set for 1% FPR on validation; details in `notebooks/05_security.ipynb`.
 
-**Alert volume.** On a sensor seeing 1M flows a day, the random forest's 4.0% test FPR means ~39,000 false alerts a day instead of the ~10,000 planned at 1%. If 1% of flows are attacks it catches 80% of them and 17% of its alerts are real; at 0.1%, closer to a real network, 2%, about 50 false alerts for every true one. A per-flow classifier is not usable as an alert source on its own: flows would have to be grouped by host and time window and ranked before an analyst sees them.
+**Alert volume.** On a sensor seeing 1M flows a day, the random forest's 4.0% test FPR means ~39,000 false alerts a day instead of the ~10,000 planned at 1%. If 1% of flows are attacks it catches 80% of them and 17% of its alerts are real; at 0.1%, closer to a real network, 2%, about 50 false alerts for every true one. The threshold drift is not the whole story: even at the 1% FPR the threshold was set for, precision would be 45% and 7.4%, and for half the alerts to be real at 0.1% attacks the FPR would have to be 0.08%, 50 times lower than on test. A per-flow classifier is not usable as an alert source on its own: flows would have to be grouped by host and time window and ranked before an analyst sees them.
 
 **Where the false alarms are.** 87% of them are normal flows with `sttl` 254, which is 41% of normal test traffic and 19% of validation: TCP connections with no recognised service closed with FIN, and one-way UDP flows (state INT, 13% FPR). `sttl` is a marker, not the cause; a model trained without the TTL columns splits normal traffic the same way. It points at traffic from particular testbed hosts, a trait of the lab rather than of attacks. On a real network TTL depends on the operating system and the number of hops, so this is the first thing that would not carry over.
 
 **Blind spot: Fuzzers.** Three quarters of the missed attacks are Fuzzers, and 70% of distinct Fuzzers flows get through. The missed ones look like the false alarms: TCP, no service, FIN, sttl 254, ~10 packets in ~0.6 s, a few hundred bytes each way. At flow level that part of the attack traffic and that part of the normal traffic can't be told apart; payload or the sequence of a host's flows would be needed.
 
-**Where anomaly detection helps.** With Generic held out of training, the random forest catches 29-35% of it (three seeds), Isolation Forest and the autoencoder, which only ever see normal traffic, 80-87%. For the other categories the supervised model wins even without having seen them. Overall the anomaly detectors miss ~70% of distinct attack flows, depend strongly on their settings and, for the autoencoder, on the seed: a second opinion for unusual traffic, not the main detector.
+**Where anomaly detection helps.** With Generic held out of training, the random forest catches 29-35% of it (three seeds), Isolation Forest and the autoencoder, which only ever see normal traffic, 80-87%. For the other categories the supervised model wins even without having seen them. Overall the anomaly detectors miss ~70% of distinct attack flows at 2.6-3.7% test FPR (over three seeds), depend strongly on their settings and, for the autoencoder, on the seed: a second opinion for unusual traffic, not the main detector.
 
 **MITRE ATT&CK.** UNSW-NB15 categories are traffic classes from an attack generator, not ATT&CK techniques, so the mapping is at tactic level and approximate. Detection rates are on distinct test rows; "held out" means the category was removed from training (`notebooks/04_leave_one_out.ipynb`).
 
 | Category | Tactic | Example technique | RF, seen | RF, held out (3 seeds) | Isolation Forest / autoencoder |
 |---|---|---|---|---|---|
 | Reconnaissance | Reconnaissance (TA0043), Discovery (TA0007) | T1595 Active Scanning, T1046 Network Service Discovery | 95% | 46-49% | 10% / 9% |
-| Analysis (port scans, spam, HTML file penetration) | Reconnaissance (TA0043), Discovery (TA0007) | T1046 Network Service Discovery | 87% | 87% | 82% / 78% |
+| Analysis (port scans, spam, HTML file penetration) | Reconnaissance (TA0043), Discovery (TA0007); the spam part is closer to Initial Access (TA0001) | T1046 Network Service Discovery; T1566 Phishing for spam | 87% | 87% | 82% / 78% |
 | Fuzzers | Reconnaissance (TA0043) | T1595.002 Vulnerability Scanning (closest) | 30% | 29-34% | 11% / 12% |
 | Exploits | Initial Access (TA0001), Execution (TA0002), Privilege Escalation (TA0004) | T1190 Exploit Public-Facing Application, T1068 Exploitation for Privilege Escalation | 93% | 76-78% | 17% / 20% |
 | Shellcode | Execution (TA0002) | the payload of an exploit | 87% | 78-81% | 0% / 0.5% |
 | Backdoor | Persistence (TA0003), Command and Control (TA0011) | T1071 Application Layer Protocol | 98% | 96-97% | 85% / 82% |
-| Worms | Lateral Movement (TA0008) | T1210 Exploitation of Remote Services | 93% (44 rows) | 93-95% | 16% / 16% |
+| Worms | Lateral Movement (TA0008) | T1210 Exploitation of Remote Services | 93% (44 rows) | 93-96% | 16% / 16% |
 | DoS | Impact (TA0040) | T1498 Network Denial of Service, T1499 Endpoint Denial of Service | 92% | 89-90% | 39% / 38% |
-| Generic (attacks on block ciphers) | no clean match; closest is Credential Access (TA0006) | – | 98% | 29-35% | 80% / 80% |
+| Generic (attacks on block ciphers) | no clean match | – | 98% | 29-35% | 80% / 80% |
 
 Read as coverage, the weakest stages are the early ones: scanning and fuzzing, especially when the model hasn't seen that kind of traffic, which is where an early warning would be worth most. Autoencoder numbers are for seed 42; other seeds move some categories a lot (Analysis 46-78%).
 
@@ -108,6 +108,7 @@ Decisions based on training and validation data
 Decisions informed by test inspection
 - reporting on distinct test rows and adding `macro_detection`, after seeing how repeated flows raise recall;
 - the FPR breakdown by `sttl`, computed on test;
+- the error analysis and alert estimates in `05_security`, computed on test as a diagnostic; no model or threshold was changed after them;
 - `OneHotEncoder(handle_unknown="infrequent_if_exist")`, after seeing `state` values in test that train doesn't have (5 rows).
 
 `04_leave_one_out` is an exploratory held-out-category analysis, not evidence of zero-day detection. Hyperparameters and anomaly detector settings were chosen with all categories present, and all categories come from the same attack tool (IXIA PerfectStorm) and hosts, so a held-out category still shares traffic characteristics with the ones the model was trained on. Detecting attacks from a different source would need traffic from a different network. An earlier version held out six categories chosen partly on test results; all nine are now included, Worms (44 distinct test rows) with a 95% Wilson interval. The main models are repeated with three seeds (split and fits): the random forest and Isolation Forest move by at most 6 points per category, the autoencoder by up to 31 (Analysis 46-78%), so its single-seed numbers should be read with that spread.
