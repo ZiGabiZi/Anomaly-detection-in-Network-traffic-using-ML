@@ -65,8 +65,9 @@ def load_unsw(split: str, data_dir: Path | str | None = None) -> tuple[pd.DataFr
 
 def check_columns(df: pd.DataFrame) -> None:
     """Raise ValueError if `df` can't be scored: no rows, a feature column missing or with empty
-    values, or a numeric feature holding text, negative or infinite values (every UNSW-NB15
-    feature is a count, size, time or rate). Other columns are ignored.
+    values, a categorical value that is blank (UNSW-NB15 writes "-" for none), or a numeric
+    feature holding text, negative or infinite values (every UNSW-NB15 feature is a count, size,
+    time or rate; -inf is caught as negative). Other columns are ignored.
 
     A model quietly scoring impossible values would be easy to evade, so they are rejected.
     """
@@ -79,6 +80,10 @@ def check_columns(df: pd.DataFrame) -> None:
     empty = [c for c in FEATURES if df[c].isna().to_numpy().any()]
     if empty:
         raise ValueError(f"empty values in columns: {empty}")
+    # read_csv turns "" into NaN, but a DataFrame built in code can still hold "" or spaces
+    blank = [c for c in CATEGORICAL if (df[c].astype(str).str.strip() == "").to_numpy().any()]
+    if blank:
+        raise ValueError(f"blank values in columns: {blank}")
     not_numeric = [c for c in NUMERIC if not pd.api.types.is_numeric_dtype(df[c])]
     if not_numeric:
         raise ValueError(f"non-numeric values in numeric columns: {not_numeric}")
