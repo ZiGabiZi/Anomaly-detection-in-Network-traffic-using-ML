@@ -3,6 +3,9 @@
 Uses the hyperparameters saved in reports/results.json by notebooks/02_supervised.ipynb, with the
 same split and seed, so it rebuilds the model reported there. The alert threshold is set for 1% FPR
 on the validation part.
+
+Only the random forest is trained here: it is the model selected on validation. The other models
+(gradient boosting, Isolation Forest, autoencoder) are compared in the notebooks; see the README.
 """
 
 import argparse
