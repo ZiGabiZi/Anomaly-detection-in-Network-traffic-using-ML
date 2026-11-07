@@ -172,5 +172,11 @@ In short, details in [METHODOLOGY.md](METHODOLOGY.md):
 
 The notebooks run in order (02 before 03 and 04, which read its results). `02_supervised` takes about 10 minutes with `RUN_SEARCH = False` (it refits with the saved hyperparameters) and about 1.5 hours with the full search; `03_anomaly` about 40 minutes and `04_leave_one_out` about 35, mostly autoencoder training over three seeds.
 
+## Next step: traffic from another network
+The open question is whether any of this carries over beyond the UNSW-NB15 testbed (see Limits). Planned, not done yet:
+1. **CIC-UNSW-NB15.** The same captures with features extracted by CICFlowMeter (`Data.csv` + `Label.csv`): own stratified split, a preprocessor for the new features, the same `evaluation.py` and scripts. It comes from the same testbed, so it tests the change of feature extractor, not generalisation.
+2. **Own lab traffic.** Virtual machines on an isolated network of my own (no traffic from anyone else's network), captured with Wireshark / tcpdump, flows extracted with CICFlowMeter and scored by the model trained on CIC-UNSW-NB15. Preprocessing, model, threshold and metrics are frozen before looking at the lab data, so this is the first evaluation on independent traffic.
+3. **Write-up of the differences** between the lab traffic and the testbed, starting with the TTL values and host traits that drive the false alarms here.
+
 ## Earlier version
 `docs/` keeps the report and presentation of the 2023-2024 version of this project. Their results are outdated and not methodologically valid (the autoencoder was scored per batch of 16 flows, not per flow); they are there for the record only.
