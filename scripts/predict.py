@@ -2,8 +2,10 @@
 
 The input CSV needs the 42 UNSW-NB15 feature columns (other columns are ignored). The output has
 one row per flow: id (if the input has one), score, alert and, with --category, the most likely
-attack category for flows with an alert. The category is indicative only: the multi-class model
-has a macro-F1 of about 0.50 on test, and Analysis, Backdoor and DoS mostly come out as Exploits.
+attack category for flows with an alert. Score and alert come from the binary model; the category
+comes from a separate multi-class model and doesn't change the alert. It is indicative only: that
+model has a macro-F1 of about 0.50 on test, and Analysis, Backdoor and DoS mostly come out as
+Exploits.
 """
 
 import argparse

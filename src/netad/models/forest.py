@@ -116,8 +116,9 @@ def score_flows(df: pd.DataFrame, model: Pipeline, threshold: float,
     """One row per flow: attack score, alert (score >= threshold) and, if `category_model` is
     given, the most likely attack category for flows with an alert (empty otherwise).
 
-    The category is picked among attack classes only, so it can't say Normal for an alert.
-    The id column is kept when present.
+    The alert comes from `model` alone. The category comes from the separate multi-class model,
+    picked among attack classes only, so it can't say Normal for an alert, and it never changes
+    the alert. The id column is kept when present.
     """
     check_columns(df)
     X = df[FEATURES]
